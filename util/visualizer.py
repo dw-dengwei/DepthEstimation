@@ -1,3 +1,4 @@
+from typing import OrderedDict
 import numpy as np
 import os
 import sys
@@ -5,7 +6,7 @@ import ntpath
 import time
 from . import util, html
 from subprocess import Popen, PIPE
-
+ 
 
 try:
     import wandb
@@ -87,6 +88,7 @@ class Visualizer():
                 self.create_visdom_connections()
 
         if self.use_wandb:
+            wandb.login(key='253339369d60f859c4c8e26ab213edc19e5c5b0d')	
             self.wandb_run = wandb.init(project=self.wandb_project_name, name=opt.name, config=opt) if not wandb.run else wandb.run
             self.wandb_run._label(repo='CycleGAN-and-pix2pix')
 
@@ -210,18 +212,29 @@ class Visualizer():
                 webpage.add_images(ims, txts, links, width=self.win_size)
             webpage.save()
 
-    def plot_current_losses(self, epoch, counter_ratio, losses):
+    def plot_current_losses_metrics(self, epoch, counter_ratio, losses, metrics):
         """display the current losses on visdom display: dictionary of error labels and values
 
         Parameters:
             epoch (int)           -- current epoch
             counter_ratio (float) -- progress (percentage) in the current epoch, between 0 to 1
             losses (OrderedDict)  -- training losses stored in the format of (name, float) pairs
+            metrics (OrderedDict) -- predicting metrics stored in the format of (name, float) pairs
         """
+        need_to_plot = OrderedDict()
+        for k, v in losses.items():
+            need_to_plot[k] = v
+        for k, v in metrics.items():
+            need_to_plot[k] = v
+            
         if not hasattr(self, 'plot_data'):
-            self.plot_data = {'X': [], 'Y': [], 'legend': list(losses.keys())}
+            self.plot_data = {
+                'X': [], 
+                'Y': [], 
+                'legend': list(need_to_plot)
+            }
         self.plot_data['X'].append(epoch + counter_ratio)
-        self.plot_data['Y'].append([losses[k] for k in self.plot_data['legend']])
+        self.plot_data['Y'].append([need_to_plot[k] for k in self.plot_data['legend']])
         try:
             self.vis.line(
                 X=np.stack([np.array(self.plot_data['X'])] * len(self.plot_data['legend']), 1),
@@ -235,21 +248,24 @@ class Visualizer():
         except VisdomExceptionBase:
             self.create_visdom_connections()
         if self.use_wandb:
-            self.wandb_run.log(losses)
+            self.wandb_run.log(need_to_plot)
 
     # losses: same format as |losses| of plot_current_losses
-    def print_current_losses(self, epoch, iters, losses, t_comp, t_data):
+    def print_current_losses_metrics(self, epoch, iters, losses, metrics, t_comp, t_data):
         """print current losses on console; also save the losses to the disk
 
         Parameters:
-            epoch (int) -- current epoch
-            iters (int) -- current training iteration during this epoch (reset to 0 at the end of every epoch)
-            losses (OrderedDict) -- training losses stored in the format of (name, float) pairs
-            t_comp (float) -- computational time per data point (normalized by batch_size)
-            t_data (float) -- data loading time per data point (normalized by batch_size)
+            epoch (int)           -- current epoch
+            iters (int)           -- current training iteration during this epoch (reset to 0 at the end of every epoch)
+            losses (OrderedDict)  -- training losses stored in the format of (name, float) pairs
+            t_comp (float)        -- computational time per data point (normalized by batch_size)
+            t_data (float)        -- data loading time per data point (normalized by batch_size)
+            metrics (OrderedDict) -- predicting metrics stored in the format of (name, float) pairs
         """
         message = '(epoch: %d, iters: %d, time: %.3f, data: %.3f) ' % (epoch, iters, t_comp, t_data)
         for k, v in losses.items():
+            message += '%s: %.3f ' % (k, v)
+        for k, v in metrics.items():
             message += '%s: %.3f ' % (k, v)
 
         print(message)  # print the message
