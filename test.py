@@ -124,3 +124,4 @@ if __name__ == "__main__":
 
     mse = mse_err(real_B, fake_B)
     print(f"metric mean squre error: {mse}")
+
