@@ -26,13 +26,17 @@ See options/base_options.py and options/test_options.py for more test options.
 See training and test tips at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/tips.md
 See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/qa.md
 """
+from distutils.spawn import find_executable
+from importlib.resources import read_binary
 import os
 from options.test_options import TestOptions
 from data import create_dataset
 from models import create_model
 from util.visualizer import save_images
 from util import html
+import cv2 as cv
 import numpy as np
+from util.util import tensor2im
 from sklearn.metrics import mean_squared_error as mse_err
 
 try:
@@ -97,8 +101,10 @@ if __name__ == "__main__":
             break
         model.set_input(data)  # unpack data from data loader
         r, f = model.test()  # run inference
-        real_B.append(r.reshape(-1))
-        fake_B.append(f.reshape(-1))
+        r = cv.normalize(r, np.zeros(r.shape), 0, 255, cv.NORM_MINMAX).reshape(-1)
+        f = cv.normalize(f, np.zeros(f.shape), 0, 255, cv.NORM_MINMAX).reshape(-1)
+        real_B.append(r)
+        fake_B.append(f)
         visuals = model.get_current_visuals()  # get image results
         img_path = model.get_image_paths()  # get image paths
         if i % 5 == 0:  # save images to an HTML file

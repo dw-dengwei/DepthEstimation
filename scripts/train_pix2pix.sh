@@ -10,9 +10,9 @@ python train.py \
 --norm batch \
 --pool_size 0 \
 --use_wandb \
---gpu_ids 0,1,2,3 \
---batch_size 16 \
+--gpu_ids 0,1 \
+--batch_size 32 \
 --print_freq 20 \
 --display_freq 20 \
 --lr 3e-4 \
---n_epochs 300
+--n_epochs 200

@@ -1,4 +1,4 @@
-name: pix
+name: depth
 channels:
 - pytorch
 - defaults

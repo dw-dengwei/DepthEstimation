@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+import cv2 as cv
+import numpy as np
 from sklearn.metrics import mean_squared_error as mse_err
 from util.util import tensor2im
 from .base_model import BaseModel
@@ -170,12 +172,24 @@ class Pix2PixModel(BaseModel):
         self.compute_metric()  # compute metric
 
     def compute_metric(self):
-        fake_B_tensor = tensor2im(self.fake_B)
-        fake_B_tensor = fake_B_tensor.reshape(fake_B_tensor.shape[0], -1)
-        real_B_tensor = tensor2im(self.real_B)
-        real_B_tensor = real_B_tensor.reshape(real_B_tensor.shape[0], -1)
+        fake_B_img = cv.normalize(
+            self.fake_B.detach().cpu().numpy(), 
+            np.zeros((self.fake_B.size())),
+            0, 
+            255, 
+            cv.NORM_MINMAX
+        )
+        real_B_img = cv.normalize(
+            self.real_B.detach().cpu().numpy(), 
+            np.zeros((self.real_B.size())),
+            0, 
+            255, 
+            cv.NORM_MINMAX
+        )
+        fake_B_img = fake_B_img.reshape(fake_B_img.shape[0], -1)
+        real_B_img = real_B_img.reshape(real_B_img.shape[0], -1)
 
-        self.metric_mse = mse_err(fake_B_tensor, real_B_tensor)
+        self.metric_mse = mse_err(fake_B_img, real_B_img)
 
     def test(self):
         """Forward function used in test time.
