@@ -34,7 +34,7 @@ for sp in splits:
     img_fold_B = os.path.join(args.fold_B, sp)
     img_list = os.listdir(img_fold_A)
     if args.use_AB:
-        img_list = [img_path for img_path in img_list if '_A.' in img_path]
+        img_list = [img_path for img_path in img_list if 'rgb' in img_path]
 
     num_imgs = min(args.num_imgs, len(img_list))
     print('split = %s, use %d/%d images' % (sp, num_imgs, len(img_list)))
@@ -46,7 +46,7 @@ for sp in splits:
         name_A = img_list[n]
         path_A = os.path.join(img_fold_A, name_A)
         if args.use_AB:
-            name_B = name_A.replace('_A.', '_B.')
+            name_B = name_A.replace('rgb', 'depth')
         else:
             name_B = name_A
         path_B = os.path.join(img_fold_B, name_B)

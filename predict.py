@@ -29,6 +29,7 @@ See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-a
 from distutils.spawn import find_executable
 from importlib.resources import read_binary
 import os
+import torch
 from options.test_options import TestOptions
 from data import create_dataset
 from models import create_model
@@ -37,8 +38,10 @@ from util.visualizer import save_images
 from util import html
 import cv2 as cv
 import numpy as np
+from PIL import Image
 from util.util import tensor2im
 from sklearn.metrics import mean_squared_error as mse_err
+from data.base_dataset import get_transform, get_params
 
 try:
     import wandb
@@ -69,63 +72,27 @@ if __name__ == "__main__":
     )  # regular setup: load and print networks; create schedulers
 
     # initialize logger
-    if opt.use_wandb:
-        wandb_run = (
-            wandb.init(
-                project=opt.wandb_project_name, name=opt.name, config=opt
-            )
-            if not wandb.run
-            else wandb.run
-        )
-        wandb_run._label(repo="CycleGAN-and-pix2pix")
+    model.eval()
+    with torch.no_grad():
+        for i in range(1, 100):
+            if not os.path.exists(f'test_input/{i}.jpg'):
+                continue
+            img = Image.open(f'test_input/{i}.jpg').convert("RGB")
+            mask = np.array(Image.open(f'mask/{i}.jpg'))[:, :, 0]
+            mask[mask > 0] = 1
+            mask = cv.resize(mask, (128, 128))
+            mask = np.expand_dims(mask, axis=2)
+            img = np.array(img)
+            #img = img * mask
+            img = Image.fromarray(img)
+            transform_params = get_params(opt, img.size)
+            transform = get_transform(opt, transform_params, grayscale=False)
+            img = transform(img).unsqueeze(0)
 
-    # create a website
-    web_dir = os.path.join(
-        opt.results_dir, opt.name, "{}_{}".format(opt.phase, opt.epoch)
-    )  # define the website directory
-    if opt.load_iter > 0:  # load_iter is 0 by default
-        web_dir = "{:s}_iter{:d}".format(web_dir, opt.load_iter)
-    print("creating web directory", web_dir)
-    webpage = html.HTML(
-        web_dir,
-        "Experiment = %s, Phase = %s, Epoch = %s"
-        % (opt.name, opt.phase, opt.epoch),
-    )
-    # test with eval mode. This only affects layers like batchnorm and dropout.
-    # For [pix2pix]: we use batchnorm and dropout in the original pix2pix. You can experiment it with and without eval() mode.
-    # For [CycleGAN]: It should not affect CycleGAN as CycleGAN uses instancenorm without dropout.
-    if opt.eval:
-        model.eval()
-    real_B, fake_B = [], []
-    print(len(dataset))
-    for i, data in enumerate(dataset):
-        if i >= opt.num_test:  # only apply our model to opt.num_test images.
-            break
-        model.set_input(data)  # unpack data from data loader
-        r, f = model.test()  # run inference
-        r = cv.normalize(r, r, 0, 255, cv.NORM_MINMAX).reshape(-1)
-        f = cv.normalize(f, f, 0, 255, cv.NORM_MINMAX).reshape(-1)
-        real_B.append(r)
-        fake_B.append(f)
-        visuals = model.get_current_visuals(
-            mse=str(mse_err(r, f).item())
-        )  # get image results
-        img_path = model.get_image_paths()  # get image paths
-        if i % 5 == 0:  # save images to an HTML file
-            print("processing (%04d)-th image... %s" % (i, img_path))
-        save_images(
-            webpage,
-            visuals,
-            img_path,
-            aspect_ratio=opt.aspect_ratio,
-            width=opt.display_winsize,
-            use_wandb=opt.use_wandb,
-        )
-    webpage.save()  # save the HTML
-
-    real_B = np.stack(real_B)
-    fake_B = np.stack(fake_B)
-
-    mse = mse_err(real_B, fake_B)
-    print(f"metric mean squre error: {mse}")
-
+            model.set_input({"A": img, "B": img, "A_paths": ""})
+            model.forward()
+            pred = model.fake_B.detach().cpu().numpy().squeeze()
+            #pred = np.transpose(pred,(1,2,0))
+            pred = cv.normalize(pred, None, 0, 255, cv.NORM_MINMAX)
+            cv.imwrite(f'test_output/{i}.jpg', pred)
+            print(f'test_output/{i}.jpg')

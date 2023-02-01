@@ -45,6 +45,9 @@ class AlignedDataset(BaseDataset):
         A = AB.crop((0, 0, w2, h))
         B = AB.crop((w2, 0, w, h))
 
+        A = A.resize((64, 64))
+        B = B.resize((64, 64))
+
         # apply the same transform to both A and B
         transform_params = get_params(self.opt, A.size)
         A_transform = get_transform(self.opt, transform_params, grayscale=(self.input_nc == 1))
